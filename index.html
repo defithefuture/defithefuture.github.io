@@ -354,7 +354,11 @@
           op_value: 0,
           max_height: 1000,
           asset_attrs: { 'dai': { deposite: 0, earn: 0, balance: 0, allowance: 0 } },
-          my_profolio: [{ name: 'Compound', weight: 0.5 }, { name: 'Fulcrum', weight: 0.2 }, { name: 'Aave', weight: 0.3 },],
+          my_profolio: [
+            { name: 'Compound', profit_weight: 0, balance_weight: 0 },
+            { name: 'Fulcrum', profit_weight: 0, balance_weight: 0 },
+            { name: 'Aave', profit_weight: 0, balance_weight: 0 }
+          ],
           manager_profolio: [{ name: 'Compound', weight: 0.5 }, { name: 'Fulcrum', weight: 0.2 }, { name: 'Aave', weight: 0.3 },],
           no_proxy_contract: true,
           platforms: [
@@ -435,7 +439,7 @@
         }
       },
       mounted() {
-        this.refreshData()
+        setTimeout(() => this.refreshData(), 1000)
       },
       methods: {
         onResize() {
@@ -578,22 +582,35 @@
             this.dialog_text = 'Loading data from the chain'
             this.controller_dialog = 1
             let _tokenAddr = this.current_asset_obj.address
-            let controller_addr = await managerContract.methods.contractAddress(senderInfo.address).call({ from: senderInfo.address })
             let profitWeights = [];
-            let t = await managerContract.methods.getAllBalancesByAsset(_tokenAddr).call({ from: senderInfo.address })
-            this.asset_attrs[this.current_asset].deposit = t["_total"]
-            t = await managerContract.methods.getProfitSinceLastDeposit(_tokenAddr).call({ from: senderInfo.address })
+            let t
+            try {
+              t = await managerContract.methods.getAllBalancesByAsset(_tokenAddr).call({ from: senderInfo.address })
+              t = t["_total"]
+            } catch (e2) {
+              t = 0
+            }
+            this.asset_attrs[this.current_asset].deposit = t
+            try {
+              t = await managerContract.methods.getProfitSinceLastDeposit(_tokenAddr).call({ from: senderInfo.address })
+            } catch (e2) {
+              t = 0
+            }
             this.asset_attrs[this.current_asset].earn = t
 
             my_profolio = []
             for (let i = 0; ; ++i) {
-              let platform
+              let platform, weight
+              try {
+                weight = await managerContract.methods.getSavingTokenBalances(platform[0], _tokenAddr).call({ from: senderInfo.address })
+              } catch (e2) {
+                weight = 0
+              }
               try {
                 platform = await managerContract.methods.platforms(i).call({ from: senderInfo.address })
-              } catch (e) {
+              } catch (e2) {
                 break
               }
-              let weight = await managerContract.methods.getSavingTokenBalances(platform[0], _tokenAddr).call({ from: senderInfo.address })
               my_profolio.push({
                 name: platform[0],
                 profit_weight: +platform[1],
@@ -606,17 +623,33 @@
               balance_weight: 0.0,
             })
             my_profolio.forEach(d => d.balance_weight = d.profit_weight % 4 + d.profit_weight * (1 + Math.random() * 0.001))
+            if (this.asset_attrs[this.current_asset].deposit == 0) {
+              my_profolio.forEach(d => d.balance_weight = 0)
+            }
 
             let tot = my_profolio.map(d => d.profit_weight).reduce((a, b) => a + b) + 1e-4
             my_profolio.forEach(d => d.profit_weight /= tot)
             tot = my_profolio.map(d => d.balance_weight).reduce((a, b) => a + b) + 1e-4
             my_profolio.forEach(d => d.balance_weight /= tot)
             this.my_profolio = my_profolio
-            let balance = await DAIContract.methods.balanceOf(senderInfo.address).call({from: senderInfo.address})
-            let allowance = await DAIContract.methods.allowance(senderInfo.address, managerContractAddress).call({from: senderInfo.address})
+            let controller_addr = await managerContract.methods.contractAddress(senderInfo.address).call({ from: senderInfo.address })
+            if (controller_addr == addressZero) {
+              this.controller_dialog = 0
+              this.asset_attrs[this.current_asset].balance = 0
+              this.asset_attrs[this.current_asset].allowance = 0
+              this.asset_attrs[this.current_asset].deposit = 0
+              return
+            }
+            let balance = 0
+            try {
+              balance = await DAIContract.methods.balanceOf(senderInfo.address).call({from: senderInfo.address})
+            } catch (e2) {}
+            let allowance = 0
+            try {
+              allowance = await await DAIContract.methods.allowance(senderInfo.address, managerContractAddress).call({from: senderInfo.address})
+            } catch (e2) {}
             this.asset_attrs[this.current_asset].balance = balance
             this.asset_attrs[this.current_asset].allowance = allowance
-            this.controller_dialog = 0
             // this.deposits['dai'] = balances["_total"];
             // this.earnings['dai'] = profit;
             // this.my_profolio = [{ name: 'Compound', weight: profitWeights[0] }, { name: 'Fulcrum', weight: profitWeights[1] }, { name: 'Aave', weight: profitWeights[2] }, ]
@@ -625,9 +658,9 @@
             if (has_metamask) {
               this.notice_text = 'Data loading failed, please check your network and refresh this page'
             }
-            this.controller_dialog = 0
             this.overlay = 1
           }
+          this.controller_dialog = 0
         }
       }
     })
