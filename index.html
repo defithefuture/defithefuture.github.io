@@ -107,6 +107,10 @@
                       <v-btn class="blue-grey ma-2">Deposite</v-btn>
                       <v-btn class="blue-grey ma-2">Withdraw</v-btn>
                     </v-card-actions-->
+                        <v-overlay absolute
+                        :value="overlay"
+                      >
+                      <span class="text-h6 text-bold"> Please install and activate the MetaMask extension first </span>
                     </v-card>
                   </v-col>
                   <v-col cols="6">
@@ -178,6 +182,11 @@
                             Withdraw All</v-btn>
                         </v-card-actions>
                       </template>
+                      <v-overlay absolute
+                      :value="overlay"
+                    >
+                    <span class="text-h5 text-bold"> No MetaMask Extension </span>
+                    </v-overlay>
                     </v-card>
                   </v-col>
                   <v-col cols="6">
@@ -192,7 +201,7 @@
                             <v-chip class="ma-2" tile outlined>
                               Total:
                             </v-chip>
-                            {{ Number(asset_attrs[current_asset].deposit / 1e18).toFixed(2) }}
+                            {{ Number(asset_attrs[current_asset].deposit / 1e18).toFixed(4) }}
                             <span class="mx-1" style="font-weight: 600">{{ current_asset_obj.name }}</span>
                             <v-avatar size="20px" class="ma-1">
                               <img :src="current_asset_obj.logo"></img>
@@ -202,7 +211,7 @@
                             <v-chip class="ma-2" tile outlined>
                               Earnings:
                             </v-chip>
-                            {{ Number(asset_attrs[current_asset].earn / 1e18).toFixed(2) }}
+                            {{ Number(asset_attrs[current_asset].earn / 1e18).toFixed(4) }}
                             <span class="mx-1" style="font-weight: 600">{{ current_asset_obj.name }}</span>
                             <v-avatar size="20px" class="ma-1">
                               <img :src="current_asset_obj.logo"></img>
@@ -221,6 +230,11 @@
                       </v-card-text>
                       <v-card-actions>
                       </v-card-actions>
+                      <v-overlay absolute
+                      :value="overlay"
+                    >
+                    <span class="text-h5 text-bold"> No MetaMask Extension </span>
+                    </v-overlay>
                     </v-card>
                   </v-col>
                   <v-col cols="12">
@@ -308,14 +322,19 @@
     let senderInfo = {}
     senderInfo.address = "0xe2d50CFb680ffD3E39a187ae8C22B4f81b092A10";
     const managerContractAddress = '0xbd9c8Cf72492Ba529D7a0d4356e31977E2097a47'; // Mainnet
-    const addressZero = "0x0000000000000000000000000000000000000000";
-    web3 = new Web3(web3.currentProvider)
+    const addressZero = "0x0000000000000000000000000000000000000000"
+    let has_metamask = web3 != undefined
+    if (has_metamask) {
+      web3 = new Web3(web3.currentProvider)
+      ethereum.enable().then(() => {
+        web3.eth.getAccounts().then(accounts => {
+          senderInfo.address = accounts[0];
+        })
+      })
+    } else {
+      var web3 = new Web3()
+    }
     window.web3 = web3
-    ethereum.enable().then(() => {
-      web3.eth.getAccounts().then(accounts => {
-        senderInfo.address = accounts[0];
-      });
-    });
     const managerContract = new web3.eth.Contract(managerInterface, managerContractAddress)
     const DAIAddress = "0x6B175474E89094C44Da98b954EedeAC495271d0F"
     const DAIContract = new web3.eth.Contract(erc20Interface, DAIAddress)
@@ -326,9 +345,9 @@
       el: '#app',
       vuetify: new Vuetify(),
       data() {
-        console.log(opportunities.data[0])
         return {
           dialog_text: '',
+          overlay: !has_metamask,
           controller_dialog: 0,
           investing_status: 0,
           op_value: 0,
@@ -544,48 +563,50 @@
         },
         // refresh user's data
         async refreshUserData() {
-          let _tokenAddr = this.current_asset_obj.address
-          let controller_addr = await managerContract.methods.contractAddress(senderInfo.address).call({ from: senderInfo.address })
-          let profitWeights = [];
-          let t = await managerContract.methods.getAllBalancesByAsset(_tokenAddr).call({ from: senderInfo.address })
-          this.asset_attrs[this.current_asset].deposit = t["_total"]
-          t = await managerContract.methods.getProfitSinceLastDeposit(_tokenAddr).call({ from: senderInfo.address })
-          this.asset_attrs[this.current_asset].earn = t
+          try {
+            let _tokenAddr = this.current_asset_obj.address
+            let controller_addr = await managerContract.methods.contractAddress(senderInfo.address).call({ from: senderInfo.address })
+            let profitWeights = [];
+            let t = await managerContract.methods.getAllBalancesByAsset(_tokenAddr).call({ from: senderInfo.address })
+            this.asset_attrs[this.current_asset].deposit = t["_total"]
+            t = await managerContract.methods.getProfitSinceLastDeposit(_tokenAddr).call({ from: senderInfo.address })
+            this.asset_attrs[this.current_asset].earn = t
 
-          my_profolio = []
-          for (let i = 0; ; ++i) {
-            let platform
-            try {
-              platform = await managerContract.methods.platforms(i).call({ from: senderInfo.address })
-            } catch (e) {
-              break
+            my_profolio = []
+            for (let i = 0; ; ++i) {
+              let platform
+              try {
+                platform = await managerContract.methods.platforms(i).call({ from: senderInfo.address })
+              } catch (e) {
+                break
+              }
+              let weight = await managerContract.methods.getSavingTokenBalances(platform[0], _tokenAddr).call({ from: senderInfo.address })
+              my_profolio.push({
+                name: platform[0],
+                profit_weight: +platform[1],
+                balance_weight: +weight,
+              })
             }
-            let weight = await managerContract.methods.getSavingTokenBalances(platform[0], _tokenAddr).call({ from: senderInfo.address })
             my_profolio.push({
-              name: platform[0],
-              profit_weight: +platform[1],
-              balance_weight: +weight,
+              name: 'Aave',
+              profit_weight: 304,
+              balance_weight: 0.0,
             })
-          }
-          my_profolio.push({
-            name: 'Aave',
-            profit_weight: 304,
-            balance_weight: 0.0,
-          })
-          my_profolio.forEach(d => d.balance_weight = d.profit_weight % 4 + d.profit_weight * (1 + Math.random() * 0.001))
+            my_profolio.forEach(d => d.balance_weight = d.profit_weight % 4 + d.profit_weight * (1 + Math.random() * 0.001))
 
-          let tot = my_profolio.map(d => d.profit_weight).reduce((a, b) => a + b) + 1e-4
-          my_profolio.forEach(d => d.profit_weight /= tot)
-          tot = my_profolio.map(d => d.balance_weight).reduce((a, b) => a + b) + 1e-4
-          my_profolio.forEach(d => d.balance_weight /= tot)
-          this.my_profolio = my_profolio
-          let balance = await DAIContract.methods.balanceOf(senderInfo.address).call({from: senderInfo.address})
-          let allowance = await DAIContract.methods.allowance(senderInfo.address, managerContractAddress).call({from: senderInfo.address})
-          this.asset_attrs[this.current_asset].balance = balance
-          this.asset_attrs[this.current_asset].allowance = allowance
-          // this.deposits['dai'] = balances["_total"];
-          // this.earnings['dai'] = profit;
-          // this.my_profolio = [{ name: 'Compound', weight: profitWeights[0] }, { name: 'Fulcrum', weight: profitWeights[1] }, { name: 'Aave', weight: profitWeights[2] }, ]
+            let tot = my_profolio.map(d => d.profit_weight).reduce((a, b) => a + b) + 1e-4
+            my_profolio.forEach(d => d.profit_weight /= tot)
+            tot = my_profolio.map(d => d.balance_weight).reduce((a, b) => a + b) + 1e-4
+            my_profolio.forEach(d => d.balance_weight /= tot)
+            this.my_profolio = my_profolio
+            let balance = await DAIContract.methods.balanceOf(senderInfo.address).call({from: senderInfo.address})
+            let allowance = await DAIContract.methods.allowance(senderInfo.address, managerContractAddress).call({from: senderInfo.address})
+            this.asset_attrs[this.current_asset].balance = balance
+            this.asset_attrs[this.current_asset].allowance = allowance
+            // this.deposits['dai'] = balances["_total"];
+            // this.earnings['dai'] = profit;
+            // this.my_profolio = [{ name: 'Compound', weight: profitWeights[0] }, { name: 'Fulcrum', weight: profitWeights[1] }, { name: 'Aave', weight: profitWeights[2] }, ]
+          } catch (e) {}
         }
       }
     })
