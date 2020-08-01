@@ -621,9 +621,11 @@
             // this.earnings['dai'] = profit;
             // this.my_profolio = [{ name: 'Compound', weight: profitWeights[0] }, { name: 'Fulcrum', weight: profitWeights[1] }, { name: 'Aave', weight: profitWeights[2] }, ]
           } catch (e) {
+            if (has_metamask) {
+              this.notice_text = 'Data loading failed, please check your network and refresh this page'
+            }
             this.controller_dialog = 0
             this.overlay = 1
-            this.notice_text = 'Data loading failed, please check your network and refresh this page'
           }
         }
       }
