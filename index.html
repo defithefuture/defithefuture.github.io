@@ -557,8 +557,8 @@
           value = '0x' + Number((+value || 0) * 1e18).toString(16)
           console.log(value)
           let r1 = managerContract.methods.depositToken(_tokenAddr, value).send({ from: senderInfo.address })
-          let r2 = managerContract.methods.investByWeight(_tokenAddr, value).send({ from: senderInfo.address })
           await r1
+          let r2 = managerContract.methods.investByWeight(_tokenAddr, value).send({ from: senderInfo.address })
           await r2
           await this.refreshUserData()
         },
