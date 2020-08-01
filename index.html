@@ -447,6 +447,7 @@
         },
         // create a controller contract
         async operateController() {
+          console.log('operateController')
           if (this.investing_status == 0) {
             this.dialog_text = 'Creating your own smart account'
             if (!!localStorage['controller_address']) {
@@ -455,6 +456,7 @@
               setTimeout(() => {
                 this.investing_status = 1
                 this.controller_dialog = 0
+                this.operateController()
               }, 2000)
             } else {
               let controller_addr = await managerContract.methods.contractAddress(senderInfo.address).call({ from: senderInfo.address })
@@ -502,6 +504,7 @@
               setTimeout(() => {
                 this.investing_status = 2
                 this.controller_dialog = 0
+                this.operateController()
               }, 2000)
             } else {
               this.controller_dialog = 2
@@ -535,6 +538,7 @@
               setTimeout(() => {
                 this.investing_status = 3
                 this.controller_dialog = 0
+                this.operateController()
               }, 2000)
             } else {
               await DAIContract.methods.approve(managerContractAddress, INT_MAX).send({from: senderInfo.address })
