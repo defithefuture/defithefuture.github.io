@@ -446,12 +446,22 @@
             this.dialog_text = 'Creating your own smart account'
             if (!!localStorage['controller_address']) {
               controllerContract = new web3.eth.Contract(controllerInterface, localStorage['controller_address'])
+              this.controller_dialog = 1
+              setTimeout(() => {
+                this.investing_status = 1
+                this.controller_dialog = 0
+              }, 2000)
+            } else {
+              let controller_addr = await managerContract.methods.contractAddress(senderInfo.address).call({ from: senderInfo.address })
+              if (controller_addr != addressZero) {
+                localStorage['controller_address'] = controller_addr
                 this.controller_dialog = 1
                 setTimeout(() => {
                   this.investing_status = 1
                   this.controller_dialog = 0
                 }, 2000)
-            } else {
+                return
+              }
               controllerContract = new web3.eth.Contract(controllerInterface)
               //holdingAssets
               this.controller_dialog = 1
@@ -564,6 +574,8 @@
         // refresh user's data
         async refreshUserData() {
           try {
+            this.dialog_text = 'Loading data from the chain'
+            this.controller_dialog = 1
             let _tokenAddr = this.current_asset_obj.address
             let controller_addr = await managerContract.methods.contractAddress(senderInfo.address).call({ from: senderInfo.address })
             let profitWeights = [];
@@ -607,6 +619,7 @@
             // this.earnings['dai'] = profit;
             // this.my_profolio = [{ name: 'Compound', weight: profitWeights[0] }, { name: 'Fulcrum', weight: profitWeights[1] }, { name: 'Aave', weight: profitWeights[2] }, ]
           } catch (e) {}
+          this.controller_dialog = 0
         }
       }
     })
