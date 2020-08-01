@@ -646,7 +646,7 @@
             } catch (e2) {}
             let allowance = 0
             try {
-              allowance = await await DAIContract.methods.allowance(senderInfo.address, managerContractAddress).call({from: senderInfo.address})
+              allowance = await DAIContract.methods.allowance(senderInfo.address, managerContractAddress).call({from: senderInfo.address})
             } catch (e2) {}
             this.asset_attrs[this.current_asset].balance = balance
             this.asset_attrs[this.current_asset].allowance = allowance
