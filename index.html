@@ -110,7 +110,7 @@
                         <v-overlay absolute
                         :value="overlay"
                       >
-                      <span class="text-h6 text-bold"> Please install and activate the MetaMask extension first </span>
+                      <span class="text-h6 text-bold"> {{ notice_text }} </span>
                     </v-card>
                   </v-col>
                   <v-col cols="6">
@@ -347,6 +347,7 @@
       data() {
         return {
           dialog_text: '',
+          notice_text: 'Please install and activate the MetaMask extension first',
           overlay: !has_metamask,
           controller_dialog: 0,
           investing_status: 0,
@@ -615,11 +616,14 @@
             let allowance = await DAIContract.methods.allowance(senderInfo.address, managerContractAddress).call({from: senderInfo.address})
             this.asset_attrs[this.current_asset].balance = balance
             this.asset_attrs[this.current_asset].allowance = allowance
+            this.controller_dialog = 0
             // this.deposits['dai'] = balances["_total"];
             // this.earnings['dai'] = profit;
             // this.my_profolio = [{ name: 'Compound', weight: profitWeights[0] }, { name: 'Fulcrum', weight: profitWeights[1] }, { name: 'Aave', weight: profitWeights[2] }, ]
-          } catch (e) {}
-          this.controller_dialog = 0
+          } catch (e) {
+            this.overlay = 1
+            this.notice_text = 'Data loading failed, please check your network and refresh this page'
+          }
         }
       }
     })
