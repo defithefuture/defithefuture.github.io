@@ -177,7 +177,7 @@
                           <v-btn color="teal lighten-2" dark depressed class="ma-2" @click="onDepositAsset(op_value)">
                             Deposit</v-btn>
                           <v-btn color="teal lighten-2" dark depressed class="ma-2" @click="onWithdrawAsset(op_value)">
-                            Withdraw</v-btn>
+                            Redeem All</v-btn>
                           <v-btn color="teal lighten-2" dark depressed class="ma-2" @click="onWithdrawAllAsset()">
                             Withdraw All</v-btn>
                         </v-card-actions>
@@ -565,10 +565,8 @@
         // on withdraw asset
         onWithdrawAsset(value) {
           let _tokenAddr = this.current_asset_obj.address
-          value = '0x' + Number((+value || 0) * 1e18).toString(16)
-          console.log(value)
-          managerContract.methods.withdrawToken(_tokenAddr, value).send({ from: senderInfo.address }).then(addr => {
-            console.log("successfully withdrawn token");
+          managerContract.methods.redeemAll(_tokenAddr).send({ from: senderInfo.address }).then(addr => {
+            console.log("successfully redeem all token");
           });
         },
         onWithdrawAllAsset() {
