@@ -660,7 +660,10 @@
           let r1 = transfer(DAIAddress, localStorage['controllerAddress'], value)
           await r1
           this.dialog_text = 'Invest your asset ...'
-          let r2 = managerContract.methods.investByWeight(_tokenAddr, value).send({ from: senderInfo.address })
+          let r2 = managerContract.methods.investByWeight(_tokenAddr, value).send({
+            from: senderInfo.address,
+            gas: 1200000,
+          })
           await r2
           this.controller_dialog = 0
           await this.refreshUserData()
