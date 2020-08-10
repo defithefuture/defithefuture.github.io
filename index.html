@@ -11,14 +11,54 @@
       display: none;
     }
 
-    #app {
+    body, #app {
       background-image: linear-gradient(180deg, hsla(0, 0%, 100%, 0) 60%, #fff), linear-gradient(70deg, #dbedff 32%, #cbddff);
     }
+    .lds-facebook {
+      display: inline-block;
+      position: relative;
+      width: 80px;
+      height: 80px;
+      left: 45vw;
+      top: 45vh;
+    }
+    .lds-facebook div {
+      display: inline-block;
+      position: absolute;
+      left: 8px;
+      width: 16px;
+      background: #555;
+      animation: lds-facebook 1.2s cubic-bezier(0, 0.5, 0.5, 1) infinite;
+    }
+    .lds-facebook div:nth-child(1) {
+      left: 8px;
+      animation-delay: -0.24s;
+    }
+    .lds-facebook div:nth-child(2) {
+      left: 32px;
+      animation-delay: -0.12s;
+    }
+    .lds-facebook div:nth-child(3) {
+      left: 56px;
+      animation-delay: 0;
+    }
+    @keyframes lds-facebook {
+      0% {
+        top: 8px;
+        height: 64px;
+      }
+      50%, 100% {
+        top: 24px;
+        height: 32px;
+      }
+    }
+
   </style>
 </head>
 
 <body>
-  <div id="app">
+  <div class="lds-facebook"><div></div><div></div><div></div></div>
+  <div id="app" style="display: none;">
     <v-app>
       <v-main>
         <v-container>
@@ -92,7 +132,7 @@
                         <v-avatar size="20px" class="ma-1">
                           <img :src="current_asset_obj.logo"></img>
                         </v-avatar>
-                        : {{ Number(current_apr).toFixed(2) }}%
+                        : {{ Number(current_apr).toFixed(4) }}%
                       </v-card-title>
 
                       <v-card-subtitle style="text-align: end;">Update every 7 days</v-card-subtitle>
@@ -150,7 +190,7 @@
                               <v-chip class="ma-2" tile outlined>
                                 Balance:
                               </v-chip>
-                              {{ Number(Math.min(asset_attrs[current_asset].balance, asset_attrs[current_asset].allowance) / 1e18).toFixed(2) }}
+                              {{ Number(Math.min(asset_attrs[current_asset].balance, asset_attrs[current_asset].allowance) / 1e18).toFixed(4) }}
                               <span class="mx-1" style="font-weight: 600">{{ current_asset_obj.name }}</span>
                               <v-avatar size="20px" class="ma-1">
                                 <img :src="current_asset_obj.logo"></img>
@@ -176,32 +216,47 @@
                         <v-card-actions>
                           <v-btn color="teal lighten-2" dark depressed class="ma-2" @click="onDepositAsset(op_value)">
                             Deposit</v-btn>
-                          <v-btn color="teal lighten-2" dark depressed class="ma-2" @click="onWithdrawAsset(op_value)">
-                            Redeem</v-btn>
                           <v-btn color="teal lighten-2" dark depressed class="ma-2" @click="onWithdrawAllAsset()">
                             Withdraw</v-btn>
                         </v-card-actions>
                       </template>
+                      <v-progress-linear
+                        color="blue-grey"
+                        v-model="investing_status * 33.3"
+                        height="25"
+                      >
+                        <strong>{{ investing_status == 0 ? 'Creating Account' : (investing_status == 1 ? 'Connecting to AI DeFi': (investing_status == 2 ? 'Approve Your DAI' : 'Ready to Invest')) }}
+                          {{ investing_status <= 2 ? '...' : ''}}
+                        </strong>
+                      </v-progress-linear>
                       <v-overlay absolute
                       :value="overlay"
                     >
                     <span class="text-h5 text-bold"> No MetaMask Extension </span>
                     </v-overlay>
                     </v-card>
+                    <v-card v-show="show_message">
+                      <v-alert
+                        text
+                        dense
+                        color="teal"
+                        icon="mdi-clock-fast"
+                        border="left">
+                        Transaction confirmed. <br/>
+                        {{ investing_status == 1 ? 'Creating Account Successful.' : (investing_status == 2 ? 'Connecting to AI DeFi Successful.': 'Approve Your DAI Successful.') }}
+                      </v-alert>
+                    </v-card>
                   </v-col>
                   <v-col cols="6">
                     <v-card min-height="200" color="rgba(136,100,201,1)" dark>
                       <v-card-title class="headline">Your return</v-card-title>
-
-                      <v-card-subtitle>Update every 7 days</v-card-subtitle>
-
                       <v-card-text>
                         <v-row>
                           <v-col cols="12" class="my-0 py-0">
                             <v-chip class="ma-2" tile outlined>
                               Total:
                             </v-chip>
-                            {{ Number(asset_attrs[current_asset].deposit / 1e18).toFixed(4) }}
+                            {{ Number(asset_attrs[current_asset].deposit / 1e18).toFixed(6) }}
                             <span class="mx-1" style="font-weight: 600">{{ current_asset_obj.name }}</span>
                             <v-avatar size="20px" class="ma-1">
                               <img :src="current_asset_obj.logo"></img>
@@ -211,7 +266,7 @@
                             <v-chip class="ma-2" tile outlined>
                               Earnings:
                             </v-chip>
-                            {{ Number(asset_attrs[current_asset].earn / 1e18).toFixed(4) }}
+                            {{ Number(asset_attrs[current_asset].earn / 1e18).toFixed(6) }}
                             <span class="mx-1" style="font-weight: 600">{{ current_asset_obj.name }}</span>
                             <v-avatar size="20px" class="ma-1">
                               <img :src="current_asset_obj.logo"></img>
@@ -321,8 +376,12 @@
   <script>
     let senderInfo = {}
     senderInfo.address = "0xe2d50CFb680ffD3E39a187ae8C22B4f81b092A10";
-    const managerContractAddress = '0xbd9c8Cf72492Ba529D7a0d4356e31977E2097a47'; // Mainnet
+    const managerContractAddress = '0x4ef769A148E1c04078F0BEE01E7F4144ebFD8D9e'; // Mainnet
     const addressZero = "0x0000000000000000000000000000000000000000"
+    const sleep = (timeountMS) => new Promise((resolve) => {
+      setTimeout(resolve, timeountMS);
+    });
+
     let has_metamask = web3 != undefined
     if (has_metamask) {
       web3 = new Web3(web3.currentProvider)
@@ -341,12 +400,18 @@
     const INT_MAX = '0xffffffffffffffffffffffffffffffff'
     let controllerContract
 
+    async function transfer(_tokenAddr, _to, _value){
+      let tokenContract = new web3.eth.Contract(erc20Interface, _tokenAddr);
+      return await tokenContract.methods.transfer(_to, _value).send({from: senderInfo.address});
+    }
+
     new Vue({
       el: '#app',
       vuetify: new Vuetify(),
       data() {
         return {
           dialog_text: '',
+          show_message: false,
           notice_text: 'Please install and activate the MetaMask extension first',
           overlay: !has_metamask,
           controller_dialog: 0,
@@ -439,6 +504,8 @@
         }
       },
       mounted() {
+        document.getElementsByClassName('lds-facebook')[0].style.display = 'none'
+        document.getElementById('app').style.display = 'block'
         setTimeout(() => this.refreshData(), 1000)
       },
       methods: {
@@ -450,18 +517,36 @@
           console.log('operateController')
           if (this.investing_status == 0) {
             this.dialog_text = 'Creating your own smart account'
-            if (!!localStorage['controller_address']) {
-              controllerContract = new web3.eth.Contract(controllerInterface, localStorage['controller_address'])
+            if (!!localStorage['controllerAddress']) {
+              controllerContract = new web3.eth.Contract(controllerInterface, localStorage['controllerAddress'])
               this.controller_dialog = 1
               setTimeout(() => {
                 this.investing_status = 1
                 this.controller_dialog = 0
                 this.operateController()
               }, 2000)
+            } else if (!!localStorage['transactionHash']) {
+              console.log('sended')
+              this.controller_dialog = 1
+              const txhash = localStorage['transactionHash']
+              while (1) {
+                let ret = await web3.eth.getTransactionReceipt(txhash)
+                if (ret && ret.contractAddress) {
+                  let contractAddress = ret.contractAddress
+                  console.log(contractAddress) // instance with the new contract address
+                  localStorage['controllerAddress'] = contractAddress
+                  setTimeout(() => {
+                    this.investing_status = 1
+                    this.controller_dialog = 0
+                  }, 1000)
+                  break
+                }
+                await sleep(2000)
+              }
             } else {
               let controller_addr = await managerContract.methods.contractAddress(senderInfo.address).call({ from: senderInfo.address })
               if (controller_addr != addressZero) {
-                localStorage['controller_address'] = controller_addr
+                localStorage['controllerAddress'] = controller_addr
                 this.controller_dialog = 1
                 setTimeout(() => {
                   this.investing_status = 1
@@ -479,7 +564,9 @@
                 from: senderInfo.address
               }, function (error, transactionHash) { })
                 .on('error', function (error) { })
-                .on('transactionHash', function (transactionHash) { })
+                .on('transactionHash', function (transactionHash) {
+                  localStorage['transactionHash'] = transactionHash
+                })
                 .on('receipt', function (receipt) {
                   console.log(receipt.contractAddress) // contains the new contract address
                 })
@@ -487,17 +574,21 @@
                 .then(function (newContractInstance) {
                   let contractAddress = newContractInstance.options.address
                   console.log(contractAddress) // instance with the new contract address
-                  localStorage['controller_address'] = contractAddress
+                  localStorage['controllerAddress'] = contractAddress
                   setTimeout(() => {
                     this.investing_status = 1
                     this.controller_dialog = 0
                   }, 1000)
                 })
             }
+            this.show_message = true
+            setTimeout(() => {
+              this.show_message = false
+            }, 10000)
           } else if (this.investing_status == 1) {
             this.dialog_text = 'Connecting to the smart manager'
             let controller_addr = await managerContract.methods.contractAddress(senderInfo.address).call({ from: senderInfo.address })
-            let contract_addr = localStorage['controller_address']
+            let contract_addr = localStorage['controllerAddress']
             if (controller_addr != addressZero &&
               controller_addr.slice(0, 12).toLowerCase() == contract_addr.slice(0, 12).toLowerCase()) {
               this.controller_dialog = 2
@@ -514,6 +605,10 @@
                 this.controller_dialog = 0
               }, 1000)
             }
+            this.show_message = true
+            setTimeout(() => {
+              this.show_message = false
+            }, 10000)
           } else if (this.investing_status == 2) {
             this.dialog_text = 'Approving your asset'
             let self = this
@@ -534,7 +629,7 @@
             }
             if (this.asset_attrs[this.current_asset].allowance > 0) {
               this.controller_dialog = 3
-              await add_asset()
+              // await add_asset()
               setTimeout(() => {
                 this.investing_status = 3
                 this.controller_dialog = 0
@@ -542,50 +637,35 @@
               }, 2000)
             } else {
               await DAIContract.methods.approve(managerContractAddress, INT_MAX).send({from: senderInfo.address })
-              await add_asset()
+              // await add_asset()
               setTimeout(() => {
                 this.investing_status = 3
                 this.controller_dialog = 0
                 this.asset_attrs[this.current_asset].allowance = this.asset_attrs[this.current_asset].balance
               }, 1000)
             }
+            this.show_message = true
+            setTimeout(() => {
+              this.show_message = false
+            }, 10000)
           }
         },
         // on deposit asset
         async onDepositAsset(value) {
           let _tokenAddr = this.current_asset_obj.address
+          console.log(_tokenAddr)
           value = '0x' + Number((+value || 0) * 1e18).toString(16)
-          console.log(value)
-          let r1 = managerContract.methods.depositToken(_tokenAddr, value).send({ from: senderInfo.address })
-          let r2 = managerContract.methods.investByWeight(_tokenAddr, value).send({ from: senderInfo.address })
+          this.controller_dialog = 4
+          this.dialog_text = 'Transfer your asset first'
+          let r1 = transfer(DAIAddress, localStorage['controllerAddress'], value)
           await r1
+          this.dialog_text = 'Invest your asset ...'
+          let r2 = managerContract.methods.investByWeight(_tokenAddr, value).send({ from: senderInfo.address })
           await r2
+          this.controller_dialog = 0
           await this.refreshUserData()
         },
-        /*
         // on withdraw asset
-        onWithdrawAsset(value) {
-          let _tokenAddr = this.current_asset_obj.address
-          value = '0x' + Number((+value || 0) * 1e18).toString(16)
-          console.log(value)
-          managerContract.methods.withdrawToken(_tokenAddr, value).send({ from: senderInfo.address }).then(addr => {
-            console.log("successfully withdrawn token");
-          });
-        },
-        onWithdrawAllAsset() {
-          let _tokenAddr = this.current_asset_obj.address
-          managerContract.methods.withdrawAllAvailableToken(_tokenAddr).send({ from: senderInfo.address }).then(addr => {
-            console.log("successfully withdrawn all token");
-          });
-        },
-        */
-        // on withdraw asset
-        onWithdrawAsset(value) {
-          let _tokenAddr = this.current_asset_obj.address
-          managerContract.methods.redeemAll(_tokenAddr).send({ from: senderInfo.address }).then(addr => {
-            console.log("successfully redeem all token");
-          });
-        },
         onWithdrawAllAsset() {
           let _tokenAddr = this.current_asset_obj.address
           managerContract.methods.withdrawAllAvailableToken(_tokenAddr).send({ from: senderInfo.address }).then(addr => {
@@ -616,6 +696,14 @@
               t = 0
             }
             this.asset_attrs[this.current_asset].earn = t
+            if (this.asset_attrs[this.current_asset].earn > this.asset_attrs[this.current_asset].deposit) {
+              this.asset_attrs[this.current_asset].earn = 0
+            } else {
+              let delta = Math.max(1, this.asset_attrs[this.current_asset].deposit - Math.floor(this.asset_attrs[this.current_asset].deposit))
+              if (this.asset_attrs[this.current_asset].earn > delta) {
+                this.asset_attrs[this.current_asset].earn = delta
+              }
+            }
 
             my_profolio = []
             for (let i = 0; ; ++i) {
@@ -636,11 +724,6 @@
                 balance_weight: +weight,
               })
             }
-            my_profolio.push({
-              name: 'Aave',
-              profit_weight: 304,
-              balance_weight: 0.0,
-            })
             my_profolio.forEach(d => d.balance_weight = d.profit_weight % 4 + d.profit_weight * (1 + Math.random() * 0.001))
             if (this.asset_attrs[this.current_asset].deposit == 0) {
               my_profolio.forEach(d => d.balance_weight = 0)
@@ -650,6 +733,7 @@
             my_profolio.forEach(d => d.profit_weight /= tot)
             tot = my_profolio.map(d => d.balance_weight).reduce((a, b) => a + b) + 1e-4
             my_profolio.forEach(d => d.balance_weight /= tot)
+            console.log(my_profolio)
             this.my_profolio = my_profolio
             let controller_addr = await managerContract.methods.contractAddress(senderInfo.address).call({ from: senderInfo.address })
             if (controller_addr == addressZero) {
